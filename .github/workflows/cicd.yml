@@ -1,60 +1,54 @@
-# This is a CI/CD pipeline that compiles Java code and runs security scans using Trivy and Gitleaks
 name: CICD Pipeline
 
-# Trigger the pipeline on push to the main branch
-on: 
-  push: 
+# Trigger workflow on push to main branch
+on:
+  push:
     branches: ["main"]
 
-jobs: 
-  # First job: compile the code
-  compile: 
-    runs-on: ubuntu-latest  # Use the latest Ubuntu runner provided by GitHub
-    
-    steps: 
-      # Step 1: Checkout the source code
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the source code
       - uses: actions/checkout@v4
 
-      # Step 2: Set up Java 17 (Temurin distribution) with Maven cache
+      # Set up JDK 17 using Temurin distribution and enable Maven caching
       - name: Setup JDK 17
         uses: actions/setup-java@v4
-        with: 
+        with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
 
-      # Step 3: Compile the Java project using Maven
+      # Compile the Maven project
       - name: Build with Maven
         run: mvn compile
 
-  # Second job: run security scans
   security-check:
     runs-on: ubuntu-latest
-    needs: compile  # This job depends on successful completion of the compile job
+    needs: compile
 
     steps:
-      # Step 1: Checkout the code again for scanning
-      - uses: actions/checkout@v4
-
-      # Step 2: Install Trivy (for vulnerability scanning)
+      # Install Trivy (vulnerability scanner)
       - name: Trivy Installation
-        run: | 
+        run: |
           sudo apt update
           sudo apt install -y wget apt-transport-https gnupg lsb-release
           wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
           sudo apt update
           sudo apt install -y trivy
-          trivy --version  # Print installed Trivy version
+          trivy --version
 
-      # Step 3: Run a filesystem scan using Trivy and output the result
+      # Run Trivy scan on the current directory and output to a file
       - name: Trivy File Scan
-        run: trivy fs --format table -o fs-report.json
+        run: trivy fs . --format table -o fs-report.json
 
-      # Step 4: Install Gitleaks (for secret scanning)
+      # Install Gitleaks (for secrets scanning)
       - name: Gitleaks Installation
-        run: sudo apt install -y gitleaks
+        run: sudo apt install gitleaks -y
 
-      # Step 5: Scan the codebase for hardcoded secrets using Gitleaks
+      # Run Gitleaks scan and save report
       - name: Gitleaks Code Scan
         run: gitleaks detect --source . -r gitleaks-report.json -f json
