@@ -30,6 +30,10 @@ jobs:
     needs: compile
 
     steps:
+      # ✅ Checkout code again — needed for Trivy & Gitleaks to scan the repo
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       # Install Trivy (vulnerability scanner)
       - name: Trivy Installation
         run: |
